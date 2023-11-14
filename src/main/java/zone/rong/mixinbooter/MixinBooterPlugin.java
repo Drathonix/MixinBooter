@@ -28,7 +28,6 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
     public static final Logger LOGGER = LogManager.getLogger("MixinBooter");
 
     public MixinBooterPlugin() {
-        System.out.println("MBPCL: " + getClass() + " : " + getClass().getClassLoader());
         addTransformationExclusions();
         initialize();
         LOGGER.info("Initializing Mixins...");
