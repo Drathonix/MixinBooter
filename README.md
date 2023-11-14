@@ -8,7 +8,7 @@ The source of the problem is caused by classes org.spongepowered.asm.launch.Mixi
 
 The solution I have created is rather scuffed. I have renamed the "MixinBootstrap" and "Mixins" classes to "TrueMixinBootstrap" and "TrueMixins" in the UniMix implementation used by this mod. In addition I have replaced the old "MixinBootstrap" and "Mixins" classes with custom ones that implement only the commonly called methods: MixinBootstrap.init(), Mixins.addConfiguration(), and Mixins.addConfigurations().
 
-Any mixin configurations added before the MixinBooter CorePlugin starts will be saved to memory and then loaded when MixinBooter calls Mixins.activate(TrueMixins.bridge) which successfully add old mod mixin configs without issue.
+Any mixin configurations added before the MixinBooter CorePlugin starts will be saved to memory and then loaded when MixinBooter calls Mixins.activate(TrueMixins.bridge) which successfully adds old mod mixin configs without issue.
 
 Only MixinBooter calls the TrueMixinBootstrap.init() method, ensuring that no other mixin mod initializes the Bootstrap at the wrong time.
 
