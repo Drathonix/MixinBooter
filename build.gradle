@@ -74,10 +74,8 @@ repositories {
 }
 
 dependencies {
-    String mixinDep = modUtils.enableMixins('com.github.CleanroomMC:UniMix:0444899b0c')
-    mixin (mixinDep) {
-        transitive = false
-    }
+    //String mixinDep = modUtils.enableMixins('com.github.CleanroomMC:UniMix:0444899b0c')
+    mixin(fileTree(dir: 'lib', include: ['*.jar']))
     embed 'com.github.LlamaLad7.MixinExtras:mixinextras-common:0.2.1-beta.2'
     annotationProcessor 'org.ow2.asm:asm-debug-all:5.2'
     annotationProcessor 'com.google.guava:guava:24.1.1-jre'
@@ -235,27 +233,4 @@ idea {
 
 tasks.named('processIdeaSettings').configure {
     dependsOn 'injectTags'
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            // from components.java
-            groupId project.group
-            artifactId project.archivesBaseName
-            artifact tasks.named('properJar')
-            artifact tasks.named('properSourcesJar')
-            artifact tasks.named('javadocJar')
-        }
-    }
-    repositories {
-        maven {
-            name = 'CleanroomMaven'
-            url = CleanroomMaven
-            credentials(PasswordCredentials)
-            authentication {
-                basic(BasicAuthentication)
-            }
-        }
-    }
 }

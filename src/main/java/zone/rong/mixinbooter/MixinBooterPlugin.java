@@ -13,7 +13,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.launch.GlobalProperties;
 import org.spongepowered.asm.launch.MixinBootstrap;
+import org.spongepowered.asm.launch.TrueMixinBootstrap;
 import org.spongepowered.asm.mixin.Mixins;
+import org.spongepowered.asm.mixin.TrueMixins;
 import zone.rong.mixinbooter.fix.MixinFixer;
 
 import java.lang.reflect.Field;
@@ -26,14 +28,16 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
     public static final Logger LOGGER = LogManager.getLogger("MixinBooter");
 
     public MixinBooterPlugin() {
+        System.out.println("MBPCL: " + getClass() + " : " + getClass().getClassLoader());
         addTransformationExclusions();
         initialize();
         LOGGER.info("Initializing Mixins...");
-        MixinBootstrap.init();
+        TrueMixinBootstrap.init();
+        Mixins.activate(TrueMixins.bridge);
         Mixins.addConfiguration("mixin.mixinbooter.init.json");
         LOGGER.info("Initializing MixinExtras...");
         MixinExtrasBootstrap.init();
-        MixinFixer.patchAncientModMixinsLoadingMethod();
+        //MixinFixer.patchAncientModMixinsLoadingMethod();
     }
 
     @Override
@@ -116,6 +120,15 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
         public boolean registerBus(EventBus bus, LoadController controller) {
             bus.register(this);
             return true;
+        }
+
+        @Override
+        public VersionRange acceptableMinecraftVersionRange() {
+            try {
+                return VersionRange.createFromVersionSpec("*");
+            } catch (InvalidVersionSpecificationException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override
