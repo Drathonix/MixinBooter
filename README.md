@@ -1,4 +1,4 @@
-# MixinBooter
+# MixinBooter with Ancient Mixin Compatibility
 
 ### What is this fork?
 
