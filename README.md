@@ -18,7 +18,7 @@ I've tested this on a modpack containing my own Mixin mod (using the old way) as
 
 ### My UniMix
 
-[My UniMix Fork]([https://github.com/Drathonix/MixinBooter](https://github.com/Drathonix/UniMix))
+[My UniMix Fork](https://github.com/Drathonix/UniMix)
 
 ### Allows any mixins that work on mods to work effortlessly on 1.8 - 1.12.2
 
