@@ -12,6 +12,8 @@ Any mixin configurations added before the MixinBooter CorePlugin starts will be 
 
 Only MixinBooter calls the TrueMixinBootstrap.init() method, ensuring that no other mixin mod initializes the Bootstrap at the wrong time.
 
+In addition, this fork has acceptableRemoteVersions set to "*" to not force clients to need mixinbooter to join servers.
+
 ### How tested is this?
 
 I've tested this on a modpack containing my own Mixin mod (using the old way) as well as with UniversalTweaks. Both mixins were successfully loaded, with my Mixins.addConfiguration() calls occuring before the MixinBooter initializations. Sponge compatibility still needs to be tested however. 
