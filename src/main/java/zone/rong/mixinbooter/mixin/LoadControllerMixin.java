@@ -1,23 +1,19 @@
 package zone.rong.mixinbooter.mixin;
 
+import net.minecraft.launchwrapper.Launch;
 import net.minecraftforge.fml.common.*;
 import net.minecraftforge.fml.common.discovery.ASMDataTable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.spongepowered.asm.mixin.Mixins;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.extensibility.IMixinProcessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.transformer.IMixinTransformer;
-import org.spongepowered.asm.mixin.transformer.MixinProcessor;
 import org.spongepowered.asm.mixin.transformer.Proxy;
-import org.spongepowered.asm.service.MixinService;
-import org.spongepowered.asm.service.mojang.MixinServiceLaunchWrapper;
-import zone.rong.mixinbooter.*;
-import zone.rong.mixinbooter.decorator.FMLContextQuery;
-import zone.rong.mixinbooter.fix.MixinFixer;
+import zone.rong.mixinbooter.ILateMixinLoader;
+import zone.rong.mixinbooter.MixinBooterPlugin;
+import zone.rong.mixinbooter.MixinLoader;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -37,32 +33,19 @@ public class LoadControllerMixin {
             ModClassLoader modClassLoader = (ModClassLoader) eventData[0];
             ASMDataTable asmDataTable = (ASMDataTable) eventData[1];
 
-            // Add mods into the delegated ModClassLoader
-            for (ModContainer container : this.loader.getActiveModList()) {
-                modClassLoader.addFile(container.getSource());
-            }
+            MixinBooterPlugin.LOGGER.info("Instantiating all MixinLoader annotated classes...");
 
-            FMLContextQuery.init(); // Initialize FMLContextQuery and add it to the global list
-            boolean log = false;
-
-            // Instantiate all @MixinLoader annotated classes
             for (ASMDataTable.ASMData asmData : asmDataTable.getAll(MixinLoader.class.getName())) {
-                if (!log) {
-                    MixinBooterPlugin.LOGGER.info("Instantiating all MixinLoader annotated classes...");
-                    log = true;
-                }
+                modClassLoader.addFile(asmData.getCandidate().getModContainer()); // Add to path before `newInstance`
                 Class<?> clazz = Class.forName(asmData.getClassName());
                 MixinBooterPlugin.LOGGER.info("Instantiating {} for its mixins.", clazz);
                 clazz.newInstance();
             }
-            log = false;
 
-            // Instantiate all ILateMixinLoader implemented classes
+            MixinBooterPlugin.LOGGER.info("Instantiating all ILateMixinLoader implemented classes...");
+
             for (ASMDataTable.ASMData asmData : asmDataTable.getAll(ILateMixinLoader.class.getName().replace('.', '/'))) {
-                if (!log) {
-                    MixinBooterPlugin.LOGGER.info("Instantiating all ILateMixinLoader implemented classes...");
-                    log = true;
-                }
+                modClassLoader.addFile(asmData.getCandidate().getModContainer()); // Add to path before `newInstance`
                 Class<?> clazz = Class.forName(asmData.getClassName().replace('/', '.'));
                 MixinBooterPlugin.LOGGER.info("Instantiating {} for its mixins.", clazz);
                 ILateMixinLoader loader = (ILateMixinLoader) clazz.newInstance();
@@ -74,27 +57,45 @@ public class LoadControllerMixin {
                     }
                 }
             }
-            log = false;
 
-            // Append all non-conventional mixin configurations gathered via MixinFixer
-            for (String mixinConfig : MixinFixer.retrieveLateMixinConfigs()) {
-                if (!log) {
-                    MixinBooterPlugin.LOGGER.info("Appending non-conventional mixin configurations...");
-                    log = true;
-                }
-                MixinBooterPlugin.LOGGER.info("Adding {} mixin configuration.", mixinConfig);
-                Mixins.addConfiguration(mixinConfig);
+            for (ModContainer container : this.loader.getActiveModList()) {
+                modClassLoader.addFile(container.getSource());
             }
 
-            // Rebuild delegated transformers
-            Field delegatedTransformersField = MixinServiceLaunchWrapper.class.getDeclaredField("delegatedTransformers");
-            delegatedTransformersField.setAccessible(true);
-            delegatedTransformersField.set(MixinService.getService(), null);
+            Field transformerField = Proxy.class.getDeclaredField("transformer");
+            transformerField.setAccessible(true);
+            Object transformer = transformerField.get(Launch.classLoader.getTransformers().stream().filter(t -> t instanceof Proxy).findFirst().get());
 
-            IMixinProcessor processor = ((IMixinTransformer) Proxy.transformer).getProcessor();
-            Method selectMethod = processor.getClass().getDeclaredMethod("select", MixinEnvironment.class);
-            selectMethod.setAccessible(true);
-            selectMethod.invoke(processor, MixinEnvironment.getCurrentEnvironment());
+            Class<?> mixinTransformerClass = Class.forName("org.spongepowered.asm.mixin.transformer.MixinTransformer");
+
+            Field processorField = mixinTransformerClass.getDeclaredField("processor");
+            processorField.setAccessible(true);
+            Object processor = processorField.get(transformer);
+
+            Class<?> mixinProcessorClass = Class.forName("org.spongepowered.asm.mixin.transformer.MixinProcessor");
+
+            Method selectConfigsMethod = mixinProcessorClass.getDeclaredMethod("selectConfigs", MixinEnvironment.class);
+            selectConfigsMethod.setAccessible(true);
+
+            MixinEnvironment env = MixinEnvironment.getCurrentEnvironment();
+            selectConfigsMethod.invoke(processor, env);
+
+            try {
+                Method prepareConfigsMethod = mixinProcessorClass.getDeclaredMethod("prepareConfigs", MixinEnvironment.class);
+                prepareConfigsMethod.setAccessible(true);
+                prepareConfigsMethod.invoke(processor, env);
+            } catch (NoSuchMethodException e) { // 0.8.3+
+                Class<?> extensionsClass = Class.forName("org.spongepowered.asm.mixin.transformer.ext.Extensions");
+                Method prepareConfigsMethod = mixinProcessorClass.getDeclaredMethod("prepareConfigs", MixinEnvironment.class, extensionsClass);
+                prepareConfigsMethod.setAccessible(true);
+
+                Field extensionsField = mixinProcessorClass.getDeclaredField("extensions");
+                extensionsField.setAccessible(true);
+                Object extensions = extensionsField.get(processor);
+
+                prepareConfigsMethod.invoke(processor, env, extensions);
+            }
+
         }
     }
 
